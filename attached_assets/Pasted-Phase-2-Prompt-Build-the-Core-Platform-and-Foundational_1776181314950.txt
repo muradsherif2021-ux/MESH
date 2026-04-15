@@ -1,0 +1,655 @@
+Phase 2 Prompt — Build the Core Platform and Foundational Master Modules
+Arabic-First | RTL-First | ERP Core Foundation | No Accounting Shortcuts
+
+We have already completed Phase 1 architecture and design.
+Now start Phase 2 implementation only.
+
+Important:
+Do NOT redesign the accounting model from scratch.
+Do NOT replace the agreed domain model.
+Do NOT simplify the posting architecture incorrectly.
+Do NOT jump into unrelated features.
+
+You must implement the foundational system modules required before advanced transactional workflows.
+
+==================================================
+1) PHASE 2 GOAL
+==================================================
+
+Build the ERP core foundation and the base master modules required before operational pooled-cost workflows and invoicing.
+
+This phase should establish:
+- platform core
+- authentication and authorization
+- foundational master data
+- treasury and bank foundations
+- customer and shipping agent masters
+- fiscal/calendar/accounting setup dependencies
+- Arabic-first application shell
+- audit-ready backend structure
+
+This phase must produce a stable base for later phases.
+
+==================================================
+2) SCOPE OF PHASE 2 — IN SCOPE
+==================================================
+
+Implement only these areas now:
+
+A. Platform Core
+- application shell / modular architecture
+- authentication
+- user management
+- role management
+- permission management
+- branch management
+- settings
+- numbering sequences
+- attachments foundation
+- notifications foundation
+- audit log foundation
+
+B. Master Data
+- customers
+- shipping agents
+- treasuries / cashboxes
+- bank accounts
+- charge types / invoice item types
+- chart of accounts
+- fiscal years
+- fiscal periods
+
+C. Finance Foundations
+- account configuration dependencies needed for future posting
+- opening balances structure if needed
+- account posting controls
+- accounting periods control foundations
+
+D. UI Foundations
+- Arabic-first navigation
+- RTL-first layout
+- light/dark mode support
+- reusable form/table/filter/page patterns
+- Arabic terminology consistency
+
+==================================================
+3) OUT OF SCOPE — DO NOT IMPLEMENT NOW
+==================================================
+
+Do NOT fully implement in this phase:
+- agent trip charges workflows
+- customs payments workflows
+- pooled cost allocation workflows
+- invoice-time allocation engine
+- final invoicing logic
+- receipts/payments posting workflows
+- reversals workflow
+- full financial reports
+- payroll
+- FX
+- external integrations
+- ZATCA API integration
+
+You may create structural placeholders only where needed, but do not build those flows now.
+
+==================================================
+4) ARCHITECTURE RULES
+==================================================
+
+Use the Phase 1 architecture as source of truth.
+
+Required backend structure:
+- modular NestJS architecture
+- each domain in its own module
+- clear service boundaries
+- DTO validation
+- role/permission guards
+- audit hooks/interceptors where appropriate
+- clean repository/data access patterns through Prisma
+
+Required frontend structure:
+- modular Next.js application
+- Arabic-first layout
+- RTL-first from day one
+- reusable page scaffolding
+- reusable data table pattern
+- reusable form pattern
+- query/mutation separation
+- permission-aware navigation and actions
+
+Do NOT produce a messy monolith.
+Do NOT tightly couple UI logic to backend internals.
+Do NOT hardcode permissions in the frontend without backend enforcement.
+
+==================================================
+5) AUTHENTICATION AND AUTHORIZATION — MANDATORY
+==================================================
+
+Implement a production-grade auth foundation with:
+
+- login
+- logout
+- refresh token flow
+- password hashing
+- session/token security
+- user status (active/inactive/locked if needed)
+- password reset foundation if appropriate
+- current-user profile endpoint
+
+RBAC must support:
+- Super Admin
+- Admin
+- Accountant
+- Operations
+- Viewer
+
+Permission design must support:
+- module-level permissions
+- screen-level permissions
+- action-level permissions
+- posting-related permissions
+- approval-related permissions later
+
+Required examples of actions:
+- view
+- create
+- edit
+- delete
+- post
+- reverse
+- print
+- export
+- approve
+
+Do not implement fake RBAC.
+Permissions must be enforceable on backend and reflected on frontend.
+
+==================================================
+6) USERS / ROLES / PERMISSIONS MODULES
+==================================================
+
+Implement full CRUD and management flow for:
+
+Users:
+- Arabic name
+- optional English name
+- username and/or email login
+- phone if needed
+- password
+- role assignment
+- branch access
+- status
+- preferences (theme/language later)
+- audit fields
+
+Roles:
+- system roles
+- custom roles if architecture allows
+- role descriptions
+- role-permission matrix
+
+Permissions:
+- permission catalog
+- grouped by module/screen/action
+- support seeding of core permissions
+- support future expansion without schema redesign
+
+Important:
+Use a scalable permission model.
+Do not hardcode permissions as a fragile enum-only approach if it blocks later flexibility.
+
+==================================================
+7) BRANCHES / SETTINGS / SEQUENCES
+==================================================
+
+Implement:
+
+Branches
+- branch code
+- Arabic name
+- optional English name
+- status
+- address/contact basics if useful
+- default settings links
+
+Settings
+- company profile basics
+- VAT settings foundations
+- fiscal year defaults
+- appearance settings foundation
+- numbering settings
+- print settings foundation
+- default accounts mapping foundation
+- system behavior flags as needed
+
+Numbering Sequences
+Must support configurable numbering for at least:
+- customers
+- agents
+- invoices
+- receipt vouchers
+- payment vouchers
+- journal entries
+- optional operations/jobs
+
+Sequence requirements:
+- prefix
+- year support if needed
+- padding length
+- next number
+- branch-aware if required
+- reset logic if configured
+- uniqueness guarantees
+
+==================================================
+8) CUSTOMERS MODULE — MANDATORY
+==================================================
+
+Implement a strong customer master.
+
+Required fields:
+- customer code
+- Arabic name
+- optional English name
+- customer type/classification if useful
+- VAT number if applicable
+- CR/commercial registration if applicable
+- contact person
+- phone
+- email
+- address
+- notes
+- branch
+- status
+- credit terms if needed
+- default accounting linkage if required
+- audit fields
+
+Required capabilities:
+- create/edit/archive
+- search/filter/sort
+- customer detail page
+- related attachments
+- future-ready receivables linkage
+- future-ready customer statement linkage
+
+Important:
+Do not force operational clearance-file logic into customer master.
+Keep customer master clean.
+
+==================================================
+9) SHIPPING AGENTS MODULE — MANDATORY
+==================================================
+
+Implement a strong shipping agent master.
+
+Required fields:
+- agent code
+- Arabic name
+- optional English name
+- contact information
+- address
+- payment terms (cash / credit / mixed if needed)
+- notes
+- branch
+- status
+- future payable/account mapping
+- audit fields
+
+Required capabilities:
+- create/edit/archive
+- search/filter/sort
+- detail page
+- attachment support
+- future-ready payable statement linkage
+
+Important:
+This is a master data module only in this phase.
+Do not fully build trip/fees transaction workflows here.
+
+==================================================
+10) TREASURIES / CASHBOXES MODULE
+==================================================
+
+Implement treasury master data and structure.
+
+Required:
+- treasury code
+- Arabic name
+- optional English name
+- linked account in chart of accounts
+- branch
+- status
+- responsible user(s) if needed
+- audit fields
+
+Rules:
+- each treasury must map to a valid postable cash account
+- mapping must be validated
+- future voucher workflows must be able to use this structure directly
+
+==================================================
+11) BANK ACCOUNTS MODULE
+==================================================
+
+Implement bank account master data.
+
+Required fields:
+- bank account code
+- Arabic display name
+- optional English name
+- bank name
+- account number / IBAN
+- currency
+- linked chart of account
+- branch
+- status
+- notes
+- audit fields
+
+Rules:
+- each bank account must map to a valid postable bank ledger account
+- prepare for future treasury/bank transactions
+- structure must support multiple bank accounts
+
+==================================================
+12) CHARGE TYPES / INVOICE ITEM TYPES CATALOG
+==================================================
+
+Implement a master catalog for future invoice and accounting behavior.
+
+Each charge type should support at least:
+- code
+- Arabic name
+- optional English name
+- accountingType = PASS_THROUGH / REVENUE
+- default revenue account if applicable
+- default settlement / recoverable account if applicable
+- vatApplicable
+- active
+- notes
+
+Important:
+Accounting treatment must depend on structured mapping, not free-text labels.
+
+Do not oversimplify this catalog.
+
+==================================================
+13) CHART OF ACCOUNTS MODULE — MANDATORY
+==================================================
+
+Implement the agreed 3-level chart of accounts foundation.
+
+Requirements:
+- hierarchical tree
+- parent/child relationships
+- account code
+- Arabic name
+- optional English name
+- account type
+- allowPosting
+- active/inactive
+- systemGenerated
+- parent account
+- level
+- branch restrictions only if truly needed
+- core account mapping support
+
+Mandatory features:
+- tree view
+- list view
+- create/edit/deactivate rules
+- prevent posting to summary accounts
+- protect system-critical accounts
+- validation against invalid hierarchy
+- future-ready linkages to treasury, banks, customers, agents, VAT, revenue, expenses
+
+Important:
+Do not implement a weak flat account list.
+Do not allow broken accounting structure.
+
+==================================================
+14) FISCAL YEARS / PERIODS MODULE
+==================================================
+
+Implement fiscal control foundation.
+
+Business rules:
+- fiscal year starts on 1/1
+- support yearly periods and monthly sub-periods if needed
+- allow open/close status
+- prevent future posting logic from using closed periods
+- foundation for later posting locks
+
+Required entities/capabilities:
+- fiscal years
+- fiscal periods
+- status control
+- open/close operations with validations
+- default current fiscal period resolution
+
+==================================================
+15) ATTACHMENTS FOUNDATION
+==================================================
+
+Implement generic attachment support usable by:
+- customers
+- agents
+- branches
+- bank accounts
+- future operations
+- future invoices
+
+Requirements:
+- metadata storage
+- file storage abstraction
+- linked entity type/id
+- uploadedBy
+- upload date
+- file name / mime / size
+- permission-aware access
+
+Do not hardwire attachments to a single module.
+
+==================================================
+16) AUDIT LOG FOUNDATION — MANDATORY
+==================================================
+
+Implement a reusable audit log framework.
+
+Audit should capture:
+- entity type
+- entity id
+- action
+- before snapshot
+- after snapshot
+- actor
+- timestamp
+- optional note / reason
+- request correlation if helpful
+
+At minimum in this phase audit:
+- users
+- roles
+- permissions assignments
+- branches
+- settings
+- customers
+- agents
+- treasuries
+- bank accounts
+- chart of accounts
+- fiscal years/periods
+- charge types
+
+Important:
+Do not leave audit as an afterthought.
+Build a reusable pattern now.
+
+==================================================
+17) NOTIFICATIONS FOUNDATION
+==================================================
+
+Implement only a lightweight extensible notifications foundation.
+
+You do NOT need full notification workflows now.
+But provide:
+- notification entity/model
+- type/category
+- recipient user
+- read/unread
+- createdAt
+- linked entity type/id
+- extensibility for future workflow notifications
+
+==================================================
+18) FRONTEND UX REQUIREMENTS — MANDATORY
+==================================================
+
+The frontend must be Arabic-first and RTL-first.
+
+Required:
+- Arabic labels by default
+- correct RTL layout across forms, tables, filters, dialogs, breadcrumbs, sidebars
+- light mode and dark mode support from the beginning
+- professional ERP look and feel
+- high-density but readable tables
+- reusable list/detail/create/edit patterns
+- permission-aware actions in UI
+- filters/search on every master page
+- status badges
+- confirmation dialogs for destructive actions
+
+Important:
+This is an ERP, not a marketing site.
+Optimize for operational productivity, clarity, and dense information display.
+
+==================================================
+19) BACKEND API REQUIREMENTS
+==================================================
+
+For this phase, define and implement clean API modules for:
+- auth
+- users
+- roles
+- permissions
+- branches
+- settings
+- sequences
+- customers
+- agents
+- treasuries
+- bank accounts
+- charge types
+- chart of accounts
+- fiscal years
+- fiscal periods
+- attachments
+- notifications
+- audit logs
+
+For each module provide:
+- list/search endpoint
+- detail endpoint
+- create endpoint
+- update endpoint
+- status change/archive where appropriate
+
+Use:
+- DTO validation
+- pagination
+- filtering
+- sorting
+- standard error handling
+- permission guards
+
+==================================================
+20) DATABASE / SCHEMA EXPECTATION
+==================================================
+
+Produce the real database implementation for Phase 2 entities.
+
+Important:
+- follow the Phase 1 ERD
+- do not invent conflicting schema names
+- include constraints and indexes
+- include unique keys where needed
+- include audit fields consistently
+- use scalable enum usage carefully
+- prepare foreign key structures for later transactional phases
+
+Expected result:
+- Prisma schema updated
+- migrations prepared
+- seed strategy for system roles/permissions/core accounts if appropriate
+
+==================================================
+21) REQUIRED OUTPUT FOR THIS PHASE
+==================================================
+
+I want the Phase 2 implementation delivered in this order:
+
+1. Phase 2 architecture confirmation
+- confirm modules being implemented
+- confirm boundaries
+- confirm what remains deferred
+
+2. Final Phase 2 schema changes
+- tables/entities added
+- fields
+- indexes
+- constraints
+- seeds
+
+3. Backend implementation
+- NestJS modules
+- services
+- controllers
+- DTOs
+- guards
+- validation
+- audit integration
+
+4. Frontend implementation
+- Next.js routes/pages
+- Arabic-first layouts
+- RTL support
+- list/detail/create/edit screens
+- reusable UI components
+
+5. Access control implementation
+- backend permission enforcement
+- frontend permission-aware rendering
+
+6. Seed data
+- roles
+- permissions
+- initial settings if needed
+- initial chart of accounts skeleton if agreed
+
+7. Demo-ready usage notes
+- how to run
+- seeded logins if created
+- module navigation summary
+
+==================================================
+22) IMPLEMENTATION QUALITY RULES
+==================================================
+
+The implementation must be:
+- production-structured
+- maintainable
+- modular
+- Arabic-first
+- RTL-first
+- dark-mode ready
+- permission-safe
+- audit-aware
+- future-compatible with pooled cost and invoice allocation phases
+
+Do NOT produce placeholder-heavy fake completion.
+Do NOT output generic theory only.
+Do NOT skip backend correctness for the sake of UI.
+Do NOT skip UI usability for the sake of backend purity.
+
+Build the actual Phase 2 foundation properly.

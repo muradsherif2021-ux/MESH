@@ -1,0 +1,40 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import authRouter from "./auth";
+import usersRouter from "./users";
+import rolesRouter from "./roles";
+import permissionsRouter from "./permissions";
+import branchesRouter from "./branches";
+import settingsRouter from "./settings";
+import sequencesRouter from "./sequences";
+import customersRouter from "./customers";
+import agentsRouter from "./agents";
+import treasuriesRouter from "./treasuries";
+import bankAccountsRouter from "./bank-accounts";
+import chargeTypesRouter from "./charge-types";
+import accountsRouter from "./accounts";
+import fiscalYearsRouter from "./fiscal-years";
+import auditLogsRouter from "./audit-logs";
+import notificationsRouter from "./notifications";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use("/auth", authRouter);
+router.use("/users", usersRouter);
+router.use("/roles", rolesRouter);
+router.use("/permissions", permissionsRouter);
+router.use("/branches", branchesRouter);
+router.use("/settings", settingsRouter);
+router.use("/sequences", sequencesRouter);
+router.use("/customers", customersRouter);
+router.use("/agents", agentsRouter);
+router.use("/treasuries", treasuriesRouter);
+router.use("/bank-accounts", bankAccountsRouter);
+router.use("/charge-types", chargeTypesRouter);
+router.use("/accounts", accountsRouter);
+router.use("/fiscal-years", fiscalYearsRouter);
+router.use("/audit-logs", auditLogsRouter);
+router.use("/notifications", notificationsRouter);
+
+export default router;

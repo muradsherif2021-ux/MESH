@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "ERP Phase 1 Architecture — Saudi Customs Clearance"
+version = "1.0.0"
+id = "artifacts/erp-phase1"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21556
+
+[services.development]
+run = "pnpm --filter @workspace/erp-phase1 run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/erp-phase1", "run", "build" ]
+publicDir = "artifacts/erp-phase1/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21556"
+BASE_PATH = "/"

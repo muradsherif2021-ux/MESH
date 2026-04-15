@@ -1,0 +1,683 @@
+Final Prompt — Build a Production-Ready ERP for a Saudi Customs Clearance Business
+Arabic-First | RTL-First | IFRS 15 Agent Model | VAT/ZATCA | Double-Entry Accounting
+
+I want you to design and implement a modern, production-ready, scalable ERP system for a Saudi customs clearance business.
+
+This is not a simple CRUD app, not just invoicing, and not a lightweight bookkeeping tool.
+It must be a real ERP built around a correct accounting engine, operational simplicity, auditability, and future scalability.
+
+The system is for a customs clearance company that acts as an AGENT, not as a principal.
+
+==================================================
+1) BUSINESS MODEL — MANDATORY
+==================================================
+
+The business works as follows:
+
+- Customers authorize the company to complete customs clearance procedures on their behalf.
+- The company pays multiple charges on behalf of customers in order to release shipments.
+- These charges include:
+  - customs duties paid to ZATCA / customs
+  - freight / shipping-related charges
+  - port charges
+  - loading / unloading charges
+  - shipping agent charges
+  - field advances / driver advances / miscellaneous on-behalf expenses
+
+After clearance is completed, the company issues an invoice to the customer containing:
+- amounts paid on behalf of the customer
+- customs clearance fees (true company revenue)
+- administrative/service fees if applicable
+- VAT only on the company’s own taxable service fees, not on pass-through amounts
+
+Core accounting truth:
+Amounts paid on behalf of the customer are NOT company revenue and NOT company operating expense.
+They are recoverable pass-through amounts and must be treated as temporary recoverable balances until invoiced.
+
+True revenue includes only:
+- clearance fees
+- company-owned service/admin fees
+
+VAT rule:
+- The company is VAT-registered in Saudi Arabia
+- VAT is applied only to clearance/service fees when applicable
+- VAT is NOT applied to pass-through amounts
+
+==================================================
+2) ACCOUNTING PRINCIPLE — MANDATORY
+==================================================
+
+The system must be designed under:
+- IFRS 15
+- Agent Model
+- Double-Entry Accounting
+- VAT / ZATCA-ready principles
+- Full auditability
+
+Do NOT:
+- treat customs duties as company revenue
+- treat freight / port / shipping agent costs as company revenue
+- treat pass-through costs as company operating expenses
+- treat VAT as revenue
+- build financial statements directly from operational tables
+
+All financial reports must be based only on POSTED JOURNAL ENTRIES.
+
+==================================================
+3) FINAL DESIGN DECISION — MANDATORY
+==================================================
+
+The system must be built around:
+
+Pooled Cost Recording + Invoice-Time Allocation + Draft/Final Invoice Lifecycle
+
+Meaning:
+
+A) Costs are first recorded as pooled/unallocated cost sources
+Examples:
+- shipping agent trip charges
+- shipping agent additional fees
+- customs payments
+- field advances / miscellaneous pooled costs
+
+B) These cost sources may serve MULTIPLE customers / shipments
+So they must NOT be assigned to a single customer by default.
+
+C) Actual allocation happens later at invoice time
+When creating the invoice, the user allocates the exact share belonging to that customer.
+
+D) Allocation is not necessarily equal
+Equal allocation must NOT be the primary logic.
+Actual allocation is the main design.
+Equal allocation can exist only as an optional helper tool.
+
+==================================================
+4) IMPORTANT UX DECISION — MANDATORY
+==================================================
+
+Do NOT build a heavy mandatory “Clearance File” workflow as the core operational entry point.
+
+I do NOT want the daily workflow to depend on creating a full, large, detailed clearance file before work can start.
+
+Instead:
+
+- Use lightweight operational references only when needed
+- Prioritize speed of entry
+- Keep the workflow simple for staff
+- Hide accounting complexity in the background
+
+You may include a lightweight optional entity such as:
+- Operation
+- Job
+- Shipment Reference
+- Billing Reference
+
+But it must remain lightweight and not be a heavy mandatory case-management layer.
+
+==================================================
+5) REQUIRED CORE DOMAIN MODEL
+==================================================
+
+Design the system around the following core entities:
+
+Platform / Core
+- Users
+- Roles
+- Permissions
+- Branches
+- Settings
+- Numbering Sequences
+- Attachments
+- Audit Logs
+- Notifications
+
+Master Data
+- Customers
+- Shipping Agents
+- Treasuries / Cashboxes
+- Bank Accounts
+- Charge Types / Invoice Item Types
+- Chart of Accounts
+- Fiscal Years / Fiscal Periods
+
+Operational / Financial Source Entities
+- Agent Trip Charges
+- Agent Additional Fees
+- Customs Payments
+- Field Advances / Driver Advances / Miscellaneous On-Behalf Costs
+- Optional lightweight Operation / Job / Shipment Reference
+
+Cost Allocation Layer
+- Cost Source
+- Cost Source Allocation
+- Allocation Consumption Tracking
+
+Sales / Collections
+- Draft Invoices
+- Final / Posted Invoices
+- Invoice Lines
+- Receipts
+- Customer Advances
+- Credit / Debit Notes if needed
+
+Treasury / Payments
+- Payment Vouchers
+- Receipt Vouchers
+- Internal Transfers
+- Bank Transactions
+
+Accounting
+- Journal Entries
+- Journal Entry Lines
+- Posting Batches if needed
+- Reversals
+- Ledger balances
+- Posting locks / fiscal controls
+
+==================================================
+6) COST SOURCE MODEL — MANDATORY
+==================================================
+
+Create a unified cost source concept.
+
+Every pooled recoverable cost must be represented through a cost source abstraction.
+
+Examples of cost source types:
+- AGENT_TRIP
+- AGENT_EXTRA_FEE
+- CUSTOMS_PAYMENT
+- FIELD_ADVANCE
+- OTHER_ON_BEHALF_COST
+
+Each cost source should store at least:
+- id
+- sourceType
+- sourceId
+- date
+- referenceNo
+- relatedAgent if applicable
+- description
+- totalAmount
+- allocatedAmount
+- remainingAmount
+- status
+- paid/unpaid state
+- branchId
+- createdBy
+- audit fields
+
+Rules:
+- A cost source can serve multiple customers
+- A cost source can be allocated across multiple invoices
+- The system must prevent over-allocation
+- The system must always show:
+  - total amount
+  - allocated amount
+  - remaining amount
+
+==================================================
+7) INVOICE ALLOCATION DESIGN — MANDATORY
+==================================================
+
+At invoice time, the user must be able to allocate specific amounts from available cost sources to the customer.
+
+Invoice lines must be of two accounting categories:
+
+A) PASS_THROUGH
+Examples:
+- customs duties
+- freight
+- port charges
+- loading/unloading
+- shipping agent costs
+- driver advance
+- other on-behalf charges
+
+B) REVENUE
+Examples:
+- customs clearance fee
+- administrative fee
+- company-owned service fee
+
+Rules:
+- Every PASS_THROUGH line must be linked to a cost source allocation
+- PASS_THROUGH lines consume available remaining balance from cost sources
+- The system must prevent duplicate consumption
+- The system must prevent consuming more than the remaining balance
+- The invoice is the primary accounting settlement point for pass-through allocation
+
+==================================================
+8) INVOICE LIFECYCLE — MANDATORY
+==================================================
+
+The system must support two invoice states:
+
+1. DRAFT / PROFORMA
+Used when:
+- preparing a customer invoice before final confirmation
+- sending a preliminary invoice
+- reviewing tentative allocations
+
+Rules:
+- draft invoice does NOT create journal entries
+- draft invoice does NOT affect accounts receivable
+- draft invoice does NOT affect VAT payable
+- draft invoice does NOT settle cost source balances
+- draft invoice remains editable
+
+2. FINAL / POSTED
+Used when:
+- invoice is confirmed
+- allocations are confirmed
+- accounting impact must be recorded
+
+Rules:
+- final invoice creates journal entries
+- final invoice creates customer receivable
+- final invoice settles allocated pass-through balances
+- final invoice recognizes revenue
+- final invoice recognizes VAT where applicable
+- final invoice becomes locked against direct editing
+- corrections must happen through reversal / adjustment flow, not by editing posted data
+
+==================================================
+9) ACCOUNTING ENGINE — MANDATORY
+==================================================
+
+I do NOT want a simple ledger with one debit and one credit field.
+I want a true journal-based accounting engine.
+
+Required:
+- journal_entries
+- journal_entry_lines
+- sourceType / sourceId
+- draft / posted states
+- createdBy / postedBy
+- postingDate
+- fiscalYear
+- fiscalPeriod
+- sequential numbering (JE-YYYY-NNNN)
+- strict validation rules
+
+Rules:
+- total debit must equal total credit
+- no posting to non-postable parent accounts
+- posted entries cannot be edited
+- posted entries cannot be deleted
+- corrections only through reversal and re-posting logic
+- all reports must read from posted journal entries only
+
+==================================================
+10) REQUIRED ACCOUNTING TREATMENT
+==================================================
+
+Use this accounting logic:
+
+A) When recording agent charges on credit:
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Agent Payables
+
+B) When paying the shipping agent:
+DR Agent Payables
+CR Cash / Bank
+
+C) When paying customs duties directly:
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Cash / Bank
+
+D) When paying field advances / driver advances / other recoverable on-behalf costs:
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Cash / Bank
+
+E) When receiving a customer advance:
+DR Cash / Bank
+CR Customer Advances
+
+F) When posting final invoice:
+DR Accounts Receivable — Customer
+CR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs (for allocated pass-through share)
+CR Clearance Fees Revenue
+CR Administrative / Service Revenue (if any)
+CR VAT Payable (if applicable)
+
+G) When receiving payment from customer:
+DR Cash / Bank
+CR Accounts Receivable — Customer
+
+H) When recording true company expenses:
+DR Operating Expense
+CR Cash / Bank or Payables
+
+I) When making internal treasury/bank transfer:
+DR Receiving Cash/Bank
+CR Sending Cash/Bank
+
+==================================================
+11) REQUIRED CHART OF ACCOUNTS
+==================================================
+
+I want a professional but simple 3-level Chart of Accounts suitable for customs clearance companies, aligned with IFRS and suitable for Saudi VAT/ZATCA integration.
+
+At minimum include:
+
+Assets
+- Current Assets
+  - Cash on Hand
+  - Bank Accounts
+  - Accounts Receivable
+  - On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+  - Agent Advances if used
+  - Prepaid Expenses
+- Non-Current Assets
+  - Fixed Assets
+  - Accumulated Depreciation
+
+Liabilities
+- Current Liabilities
+  - Agent Payables
+  - Other Payables
+  - Customer Advances
+  - VAT Payable
+  - Payroll Liabilities if needed
+
+Equity
+- Capital
+- Retained Earnings
+- Current Year Profit / Loss
+
+Revenue
+- Clearance Fees Revenue
+- Administrative Fees Revenue
+- Other Service Revenue
+
+Expenses
+- Salaries
+- Rent
+- Utilities
+- Bank Charges
+- Maintenance
+- Transportation
+- Other Operating Expenses
+
+Technical COA requirements:
+- hierarchical tree
+- parent / child accounts
+- allowPosting
+- active/inactive
+- systemGenerated support
+- account mapping support
+- no posting to summary parents
+- Arabic-first account naming
+- optional English naming later
+
+==================================================
+12) VAT / ZATCA RULES — MANDATORY
+==================================================
+
+Implement VAT carefully:
+
+- VAT is supported per invoice
+- VAT is applied only on revenue/service lines
+- VAT is not applied on pass-through lines
+- VAT amount must post to VAT Payable
+- system must support invoice types where VAT may or may not apply
+- design should remain ready for later ZATCA integration
+
+Do not implement fake or incorrect VAT logic.
+The accounting treatment must remain correct.
+
+==================================================
+13) PERMISSIONS / SECURITY — MANDATORY
+==================================================
+
+Implement strong RBAC with at least:
+- Super Admin
+- Admin
+- Accountant
+- Operations
+- Viewer
+
+Support:
+- module-level permissions
+- screen-level permissions
+- action-level permissions
+- posting permissions
+- reversal permissions
+- approval restrictions if needed
+
+==================================================
+14) AUDIT TRAIL — MANDATORY
+==================================================
+
+Every meaningful action must be audited:
+- who
+- when
+- what changed
+- before values
+- after values
+- source document
+- notes if applicable
+
+Audit must cover at least:
+- cost sources
+- allocations
+- invoices
+- receipts
+- payments
+- journal entries
+- settings
+- master data changes
+
+==================================================
+15) REPORTING RULES — MANDATORY
+==================================================
+
+Required operational reports:
+- Customer Statement
+- Agent Statement
+- Unallocated / Partially Allocated Cost Sources
+- Cost Source Allocation Report
+- Uninvoiced Recoverable Costs
+- Collections Report
+- Outstanding Customer Balances
+
+Required financial reports:
+- General Journal
+- General Ledger
+- Trial Balance
+- Income Statement
+- Balance Sheet
+- Cash Flow
+- VAT Report
+- Aged Receivables
+- Aged Payables
+
+Critical rule:
+Financial reports must be built only from POSTED JOURNAL ENTRIES.
+
+==================================================
+16) UI / UX REQUIREMENTS — MANDATORY
+==================================================
+
+The application is Arabic-first and RTL-first.
+
+Mandatory:
+- Arabic is the primary and original language
+- Full RTL support across all screens
+- Arabic labels, forms, tables, reports, messages, confirmations, dashboards, print layouts, PDFs
+- Native Arabic ERP terminology, not awkward literal translations
+- professional usability for Saudi Arabic business users
+
+Also mandatory:
+- Support both Light Mode and Dark Mode from the beginning
+- Dark mode must be first-class, not an afterthought
+- print views remain separately optimized for print/PDF
+
+UX priority:
+- operational speed
+- simple workflows
+- hidden accounting complexity
+- clear invoice presentation
+- fast daily entry for staff
+
+==================================================
+17) RECOMMENDED TECH STACK
+==================================================
+
+Use a modern scalable architecture.
+
+Recommended stack:
+Frontend
+- Next.js
+- TypeScript
+- Tailwind CSS
+- TanStack Query
+- TanStack Table
+- React Hook Form + Zod
+
+Backend
+- NestJS
+- Prisma ORM
+- PostgreSQL
+
+Support
+- Redis if useful
+- background jobs if needed
+- structured logging
+- health checks
+- file storage abstraction
+- audit-safe architecture
+
+If you recommend a better stack, justify clearly before changing it.
+
+==================================================
+18) IMPLEMENTATION RULES
+==================================================
+
+Do NOT jump directly into random UI coding.
+
+You must execute the work in phases.
+
+PHASE 1 ONLY — REQUIRED OUTPUT NOW:
+1. Full ERP architecture
+2. Domain decomposition
+3. Final database schema / ERD
+4. Cost source and allocation model
+5. Chart of Accounts design
+6. Posting rules matrix
+7. Invoice lifecycle and state machine
+8. Journal / reversal / posting rules
+9. API design outline
+10. Risks / assumptions / design decisions
+11. Recommended implementation roadmap
+
+Important:
+Do NOT start coding the UI screens before Phase 1 artifacts are completed and logically frozen.
+
+==================================================
+19) REQUIRED DELIVERABLE FORMAT FOR PHASE 1
+==================================================
+
+I want the Phase 1 output structured exactly as follows:
+
+A. Architecture Overview
+- bounded contexts / modules
+- responsibilities of each module
+- dependency rules
+
+B. Domain Model
+- entities
+- aggregates
+- relationships
+- invariants
+
+C. ERD / Database Design
+- final table list
+- key fields
+- foreign keys
+- constraints
+- indexes
+- state fields
+- allocation tables
+- audit tables
+
+D. Chart of Accounts
+- 3-level tree
+- Arabic-first names
+- postable vs non-postable
+- system accounts vs configurable accounts
+
+E. Posting Rules Matrix
+For every business event:
+- event name
+- accounting effect
+- debit account
+- credit account
+- posting timing
+- validation rules
+
+F. Invoice Lifecycle Rules
+- draft
+- final
+- reversal / correction
+- locking rules
+
+G. Journal Engine Rules
+- numbering
+- posting validations
+- edit/delete restrictions
+- reversal logic
+- fiscal controls
+
+H. API Outline
+- modules
+- endpoints
+- commands / queries
+- posting / allocation operations
+
+I. Risks and Design Decisions
+- what is intentionally simplified
+- what is configurable later
+- what is deferred to future phases
+
+J. Roadmap
+- Phase 1
+- Phase 2
+- Phase 3
+- Phase 4
+- production hardening
+
+==================================================
+20) CRITICAL DO-NOT-DO LIST
+==================================================
+
+Do NOT:
+- build a legacy limited ledger
+- use free-text item names for accounting treatment
+- assign pooled cost sources to one customer by default
+- post pass-through costs as operating expenses
+- treat VAT as revenue
+- rely on operational tables for financial statements
+- allow editing of posted invoices or posted journal entries
+- force heavy clearance file creation before daily work
+- make equal allocation the primary allocation logic
+- mix pass-through amounts with company revenue in the income statement
+
+==================================================
+21) OUTPUT QUALITY EXPECTATION
+==================================================
+
+The result must be:
+- production-ready
+- scalable
+- maintainable
+- accounting-correct
+- suitable for customs clearance operations in Saudi Arabia
+- practical for daily operational use
+- Arabic-first in terminology and UI thinking
+- ready for later integration and expansion
+
+Start with PHASE 1 only.
+Do not skip details.
+Do not give generic theory.
+Provide concrete architecture and design decisions that can actually be implemented.
