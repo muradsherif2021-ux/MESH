@@ -29,7 +29,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=21556 BASE_PATH=/ pnpm --filter @workspace/erp-phase1 run dev"
+args = "PORT=21556 BASE_PATH=/ pnpm --filter @workspace/erp-phase2 run dev"
 waitForPort = 21556
 
 [agent]
