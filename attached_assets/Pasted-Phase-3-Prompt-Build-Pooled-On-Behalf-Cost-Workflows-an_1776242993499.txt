@@ -1,0 +1,615 @@
+Phase 3 Prompt — Build Pooled On-Behalf Cost Workflows and Cost Source Engine
+Arabic-First | RTL-First | Agent Model | Pooled Cost Recording | No Direct Customer Assignment by Default
+
+We have already completed:
+- Phase 1: architecture and domain design
+- Phase 2: core platform, master data, permissions, chart of accounts, fiscal setup
+
+Now start Phase 3 implementation only.
+
+Important:
+Do NOT redesign the accounting model.
+Do NOT revert to direct customer assignment as the default behavior.
+Do NOT build invoicing allocation in full yet.
+Do NOT build final invoice posting logic in this phase.
+This phase is focused on creating the pooled cost source engine and the operational workflows that feed it.
+
+==================================================
+1) PHASE 3 GOAL
+==================================================
+
+Build the operational and accounting foundations for recording on-behalf costs that may serve multiple customers and multiple shipments.
+
+This phase must implement:
+- shipping agent trip charges
+- shipping agent additional fees
+- customs payments
+- field advances / driver advances / miscellaneous recoverable costs
+- unified cost source generation
+- pooled recoverable balance tracking
+- remaining/unallocated balance control
+- readiness for invoice-time allocation in the next phase
+
+This phase is critical because it establishes the true recoverable cost pool under the Agent Model.
+
+==================================================
+2) CORE BUSINESS RULE — MANDATORY
+==================================================
+
+The company often pays or records costs in pooled total amounts that serve multiple customers.
+
+Examples:
+- one agent trip may serve multiple shipments/customers
+- one customs payment may cover multiple customer shipments
+- one additional fee batch may relate to several customer jobs
+- one field advance may eventually be distributed across more than one customer if business reality requires
+
+Therefore:
+- these costs must NOT be assigned to one customer by default
+- these costs must first be recorded as pooled recoverable on-behalf costs
+- actual customer share will be determined later at invoice time
+
+This business rule is mandatory and must shape the data model and workflows.
+
+==================================================
+3) IN SCOPE FOR PHASE 3
+==================================================
+
+Implement only these areas now:
+
+A. Operational Source Modules
+- Agent Trip Charges
+- Agent Additional Fees
+- Customs Payments
+- Field Advances / Driver Advances / Miscellaneous On-Behalf Costs
+
+B. Unified Cost Source Engine
+- cost source creation
+- source type abstraction
+- pooled balance tracking
+- allocated vs remaining amount tracking
+- source status management
+
+C. Accounting Posting for Cost Source Creation / Settlement
+- accounting for recording agent charges
+- accounting for paying agents
+- accounting for direct customs payments
+- accounting for advances and other pooled recoverable costs
+
+D. Inquiry / Monitoring UI
+- cost source list
+- source detail page
+- remaining balance view
+- unallocated / partially allocated source visibility
+- future-ready view for later invoice allocation
+
+==================================================
+4) OUT OF SCOPE — DO NOT IMPLEMENT NOW
+==================================================
+
+Do NOT fully implement in this phase:
+- draft invoice creation
+- final invoice posting
+- invoice-time allocation UI
+- customer receivable creation from invoices
+- VAT invoicing logic
+- receipts workflow
+- customer payment application
+- reversals of posted invoices
+- full financial report set
+
+You may create structural hooks/placeholders only where required by the architecture, but do not build Phase 4 features now.
+
+==================================================
+5) DESIGN PRINCIPLE — COST SOURCE FIRST
+==================================================
+
+The system must use a unified cost source model.
+
+Every recoverable on-behalf cost must generate or map to a cost source record.
+
+Cost source examples:
+- AGENT_TRIP
+- AGENT_EXTRA_FEE
+- CUSTOMS_PAYMENT
+- FIELD_ADVANCE
+- OTHER_ON_BEHALF_COST
+
+Each cost source represents a recoverable pooled amount that may later be allocated across one or more customer invoices.
+
+This abstraction is mandatory.
+Do not scatter pooled balance logic across unrelated modules without a unified source model.
+
+==================================================
+6) REQUIRED MODULE: AGENT TRIP CHARGES
+==================================================
+
+Implement the workflow for recording shipping agent trip charges.
+
+Business meaning:
+- the company records amounts charged by a shipping agent
+- these charges may belong to multiple customer shipments
+- the charge is recoverable from customers later
+- the shipping agent may be paid later (credit basis) or immediately depending on the scenario
+
+Required fields at minimum:
+- trip charge number/reference
+- shipping agent
+- date
+- description
+- optional lightweight operation/job reference
+- total amount
+- payment basis/status
+- due date if relevant
+- notes
+- branch
+- attachments
+- status
+- audit fields
+
+Required behavior:
+- create/edit/save draft if needed based on architecture
+- confirm/post when business-approved
+- generate cost source record
+- when recorded on credit:
+  DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+  CR Agent Payables
+- if immediate payment flow is supported here, handle correctly or defer to payment workflow with clear design
+
+Important:
+Do not force customer allocation in this module.
+
+==================================================
+7) REQUIRED MODULE: AGENT ADDITIONAL FEES
+==================================================
+
+Implement additional shipping agent fees as a separate operational module.
+
+Business meaning:
+- additional charges may be received after the initial trip charge
+- they may also belong to multiple customers
+- they must enter the recoverable pool just like trip charges
+
+Required fields at minimum:
+- additional fee number/reference
+- shipping agent
+- date
+- fee type/category if useful
+- description
+- total amount
+- due date if applicable
+- notes
+- branch
+- attachments
+- status
+- audit fields
+
+Accounting on confirmed/posting:
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Agent Payables
+
+Rules:
+- separate from trip charges
+- still generate cost source
+- support inquiry and balance tracking
+- no direct single-customer linking by default
+
+==================================================
+8) REQUIRED MODULE: CUSTOMS PAYMENTS
+==================================================
+
+Implement customs payment workflow.
+
+Business meaning:
+- the company pays customs duties to ZATCA/customs on behalf of customers
+- one customs payment may cover multiple shipments/customers
+- these amounts are recoverable pass-through costs
+
+Required fields:
+- customs payment number/reference
+- payment date
+- amount
+- payment method
+- treasury or bank account used
+- external reference / receipt number if available
+- optional lightweight operation/job reference
+- notes
+- branch
+- attachments
+- status
+- audit fields
+
+Accounting on posting:
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Cash / Bank
+
+Rules:
+- customs duties are not company expense
+- customs duties are not revenue
+- must generate a cost source
+- must show remaining unallocated balance for later customer allocation
+
+==================================================
+9) REQUIRED MODULE: FIELD ADVANCES / DRIVER ADVANCES / OTHER ON-BEHALF COSTS
+==================================================
+
+Implement a generic recoverable miscellaneous pooled-cost module.
+
+Examples:
+- driver advance
+- field advance
+- temporary payment to release documents/shipment
+- miscellaneous recoverable operational cost paid on behalf of customers
+
+Required fields:
+- transaction number/reference
+- cost category/type
+- date
+- payee/payee type if applicable
+- amount
+- payment method
+- treasury/bank used if paid immediately
+- notes
+- branch
+- attachments
+- status
+- audit fields
+
+Accounting on posting:
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Cash / Bank
+
+If some business scenarios require advance-clearing logic later, design with extensibility but do not overbuild unnecessarily.
+
+==================================================
+10) COST SOURCE ENGINE — MANDATORY
+==================================================
+
+Implement a centralized cost source engine/table/service.
+
+Each cost source should include at least:
+- id
+- sourceType
+- sourceId
+- sourceNumber
+- date
+- branchId
+- description
+- linkedAgentId if applicable
+- totalAmount
+- allocatedAmount
+- remainingAmount
+- currency if relevant
+- status
+- postingState
+- createdBy
+- postedBy if applicable
+- timestamps
+- audit linkage
+
+Rules:
+- totalAmount >= allocatedAmount
+- remainingAmount = totalAmount - allocatedAmount
+- remainingAmount can never be negative
+- cost source can be:
+  - UNALLOCATED
+  - PARTIALLY_ALLOCATED
+  - FULLY_ALLOCATED
+  - CANCELLED if architecture allows
+- cost source must be queryable independently of the source document
+
+Important:
+This is one of the most important tables/services in the system.
+Design it carefully.
+
+==================================================
+11) SOURCE DOCUMENT ↔ COST SOURCE RELATIONSHIP
+==================================================
+
+For every eligible operational source document:
+- one confirmed source document should generate one cost source record
+- if the architecture allows multiple cost source lines per document, justify clearly before implementing
+- sourceType + sourceId linkage must be strict and reliable
+- deleting posted/confirmed source documents must not be allowed if it would break accounting integrity
+- correction should later happen via reversal/correction flow, not unsafe edits
+
+==================================================
+12) POSTING MODEL FOR THIS PHASE
+==================================================
+
+Implement proper accounting impact for these business events:
+
+A. Record agent trip charge on credit
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Agent Payables
+
+B. Record agent additional fee on credit
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Agent Payables
+
+C. Pay shipping agent via payment voucher/future payment flow
+DR Agent Payables
+CR Cash / Bank
+
+D. Record customs payment
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Cash / Bank
+
+E. Record field advance / driver advance / misc recoverable payment
+DR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+CR Cash / Bank
+
+Important:
+- do not post these amounts as operating expenses
+- do not post them to revenue
+- they remain recoverable assets until invoiced later
+
+==================================================
+13) STATUS / LIFECYCLE RULES
+==================================================
+
+Each source module should support a controlled lifecycle.
+
+At minimum support a state model like:
+- DRAFT
+- CONFIRMED / POSTED
+- CANCELLED or VOID if allowed by rules
+
+Rules:
+- draft does not create accounting impact
+- confirmed/posted creates accounting impact and cost source
+- posted records become protected against unsafe editing
+- cancellation rules must preserve accounting integrity
+- if cancellation after posting is not safely supported yet, block it and document the restriction
+
+==================================================
+14) OPTIONAL LIGHTWEIGHT OPERATION / JOB REFERENCE
+==================================================
+
+You may support an optional lightweight operational reference for usability, such as:
+- operation
+- job
+- shipment reference
+- customs declaration reference
+- internal file reference
+
+But this must remain lightweight and optional.
+Do NOT turn this phase into a heavy case-management system.
+
+Purpose:
+- help users find documents later
+- help contextual search/filtering
+- support reporting linkage
+- improve operational usability
+
+==================================================
+15) PAYMENT / SETTLEMENT FOUNDATIONS
+==================================================
+
+This phase may include limited agent payment support only if needed for the integrity of payable flows.
+
+If implemented:
+- payment voucher must reduce agent payable
+- payment voucher must reference treasury/bank
+- payment voucher must be auditable
+- do not over-expand this into full treasury phase unless required by architecture
+
+If payment workflows were already structurally prepared in Phase 2, integrate carefully.
+If not, add only the minimal correct payable-settlement support required here.
+
+==================================================
+16) BACKEND REQUIREMENTS
+==================================================
+
+Implement real backend modules/services/controllers/DTOs for:
+- agent trip charges
+- agent additional fees
+- customs payments
+- field advances / misc recoverable costs
+- cost sources
+- minimal payable settlement support if included
+
+Requirements:
+- NestJS modular architecture
+- Prisma schema updates
+- DTO validation
+- permission guards
+- fiscal period validations where relevant
+- posting validations
+- audit integration
+- consistent transactional service methods
+- use database transactions for posting-sensitive operations
+
+Do not implement fragile posting logic outside transactional boundaries.
+
+==================================================
+17) DATABASE / SCHEMA REQUIREMENTS
+==================================================
+
+Update the real schema for this phase.
+
+Expected tables/entities include at least:
+- agent_trip_charges
+- agent_additional_fees
+- customs_payments
+- field_advances_or_generic_on_behalf_costs
+- cost_sources
+- optional source status history if architecture uses it
+- payment voucher linkage tables if needed
+- attachment links if polymorphic/generic
+- audit linkage
+
+For each entity define:
+- keys
+- foreign keys
+- indexes
+- statuses
+- numbering/reference fields
+- audit fields
+- branch linkage
+- created/updated/posting fields
+
+Design for scalability and posting integrity.
+
+==================================================
+18) FRONTEND REQUIREMENTS
+==================================================
+
+Build Arabic-first RTL-first ERP screens for this phase.
+
+Required UI areas:
+- Agent Trip Charges list page
+- Agent Trip Charge create/edit/detail page
+- Agent Additional Fees list/create/detail page
+- Customs Payments list/create/detail page
+- Field Advances / Other Recoverable Costs list/create/detail page
+- Cost Sources inquiry list
+- Cost Source detail page
+
+Required UI behavior:
+- Arabic labels and terminology
+- RTL tables/forms/dialogs
+- filters
+- status badges
+- branch filters if applicable
+- amount summaries
+- linked source visibility
+- remaining amount visibility
+- confirm/post actions with safeguards
+- permission-aware action buttons
+
+This is ERP UI, so optimize for dense usable data, not decorative design.
+
+==================================================
+19) PERMISSIONS — MANDATORY
+==================================================
+
+Integrate with the Phase 2 RBAC system.
+
+At minimum define permissions for:
+- view agent trip charges
+- create agent trip charges
+- edit draft agent trip charges
+- post agent trip charges
+- view agent additional fees
+- create agent additional fees
+- edit draft agent additional fees
+- post agent additional fees
+- view customs payments
+- create customs payments
+- post customs payments
+- view field advances/misc costs
+- create field advances/misc costs
+- post field advances/misc costs
+- view cost sources
+- view cost source details
+- settle agent payables if payment support is included
+
+Backend enforcement is mandatory.
+Frontend hiding alone is not enough.
+
+==================================================
+20) AUDIT TRAIL — MANDATORY
+==================================================
+
+Audit all meaningful events in this phase:
+- create source document
+- edit draft source document
+- confirm/post source document
+- payment settlement actions if included
+- cost source creation/update status changes
+- cancellation/void attempts
+- reference/account changes where allowed
+
+Capture:
+- actor
+- timestamp
+- action
+- before/after values
+- entity type/id
+- optional note/reason
+
+==================================================
+21) REQUIRED OUTPUT ORDER
+==================================================
+
+Deliver this phase in the following order:
+
+1. Phase 3 architecture confirmation
+- confirm exact modules implemented
+- confirm boundaries with Phase 2 and future Phase 4
+
+2. Final schema changes
+- tables
+- fields
+- constraints
+- indexes
+- lifecycle fields
+- seeds if needed
+
+3. Posting design implementation
+- posting services
+- validations
+- transaction boundaries
+- account mapping usage
+
+4. Backend implementation
+- modules
+- services
+- controllers
+- DTOs
+- guards
+- audit hooks
+
+5. Frontend implementation
+- pages
+- forms
+- lists
+- detail views
+- confirm/post actions
+- cost source inquiry screens
+
+6. Permission integration
+- backend enforcement
+- frontend action visibility
+
+7. Demo-ready usage notes
+- how to create each source document
+- how posting works
+- how cost sources are generated
+- how remaining balances are tracked
+
+==================================================
+22) CRITICAL DO-NOT-DO LIST
+==================================================
+
+Do NOT:
+- assign pooled costs directly to one customer by default
+- build invoice allocation in this phase
+- treat pooled recoverable costs as operating expenses
+- treat customs or agent charges as revenue
+- skip cost source abstraction
+- allow posted records to be freely edited
+- build fragile posting without transaction safety
+- create a heavy mandatory clearance file system
+- use equal allocation as the primary design
+- mix operational convenience with accounting incorrectness
+
+==================================================
+23) OUTPUT QUALITY EXPECTATION
+==================================================
+
+The result must be:
+- production-structured
+- accounting-correct
+- scalable
+- maintainable
+- Arabic-first
+- RTL-first
+- operationally practical
+- ready for Phase 4 invoice-time allocation and invoicing workflows
+
+Start with Phase 3 only.
+Do not skip implementation details.
+Do not answer with generic theory.
+Build the actual pooled-cost operational engine properly.

@@ -15,6 +15,8 @@ const MODULES = [
   "users", "roles", "permissions", "branches", "settings", "sequences",
   "customers", "agents", "treasuries", "bank_accounts", "charge_types",
   "accounts", "fiscal_years", "audit_logs", "notifications",
+  "agent_trip_charges", "agent_additional_fees", "customs_payments",
+  "on_behalf_costs", "cost_sources",
 ];
 const ACTIONS = ["view", "create", "edit", "delete", "post", "reverse", "print", "export", "approve"];
 
@@ -129,6 +131,10 @@ async function main() {
     { module: "payments", nameAr: "ترقيم سندات الصرف", prefix: "PAY-" },
     { module: "journal_entries", nameAr: "ترقيم القيود اليومية", prefix: "JE-" },
     { module: "clearance_files", nameAr: "ترقيم ملفات التخليص", prefix: "CLR-" },
+    { module: "agent_trip_charges", nameAr: "ترقيم رسوم رحلات الوكلاء", prefix: "ATC-" },
+    { module: "agent_additional_fees", nameAr: "ترقيم الرسوم الإضافية للوكلاء", prefix: "AEF-" },
+    { module: "customs_payments", nameAr: "ترقيم مدفوعات الجمارك", prefix: "CPA-" },
+    { module: "on_behalf_costs", nameAr: "ترقيم التكاليف بالنيابة", prefix: "OBC-" },
   ];
   for (const s of sequencesData) {
     await db.insert(sequences).values({ ...s, currentYear: new Date().getFullYear() }).onConflictDoNothing();
@@ -319,6 +325,9 @@ function getModuleNameAr(mod: string): string {
     bank_accounts: "الحسابات البنكية", charge_types: "أنواع الرسوم",
     accounts: "دليل الحسابات", fiscal_years: "السنوات المالية",
     audit_logs: "سجل الأحداث", notifications: "الإشعارات",
+    agent_trip_charges: "رسوم رحلات الوكلاء", agent_additional_fees: "الرسوم الإضافية للوكلاء",
+    customs_payments: "مدفوعات الجمارك", on_behalf_costs: "التكاليف والسلف بالنيابة",
+    cost_sources: "مصادر التكاليف",
   };
   return names[mod] ?? mod;
 }

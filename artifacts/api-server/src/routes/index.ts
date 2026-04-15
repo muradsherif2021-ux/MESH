@@ -16,6 +16,11 @@ import accountsRouter from "./accounts";
 import fiscalYearsRouter from "./fiscal-years";
 import auditLogsRouter from "./audit-logs";
 import notificationsRouter from "./notifications";
+import agentTripChargesRouter from "./agent-trip-charges";
+import agentAdditionalFeesRouter from "./agent-additional-fees";
+import customsPaymentsRouter from "./customs-payments";
+import onBehalfCostsRouter from "./on-behalf-costs";
+import costSourcesRouter from "./cost-sources";
 
 const router: IRouter = Router();
 
@@ -36,5 +41,10 @@ router.use("/accounts", accountsRouter);
 router.use("/fiscal-years", fiscalYearsRouter);
 router.use("/audit-logs", auditLogsRouter);
 router.use("/notifications", notificationsRouter);
+router.use("/agent-trip-charges", agentTripChargesRouter);
+router.use("/agent-additional-fees", agentAdditionalFeesRouter);
+router.use("/customs-payments", customsPaymentsRouter);
+router.use("/on-behalf-costs", onBehalfCostsRouter);
+router.use("/cost-sources", costSourcesRouter);
 
 export default router;

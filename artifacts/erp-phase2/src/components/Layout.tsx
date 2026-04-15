@@ -4,8 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard, Users, Shield, Building2, Settings, Hash,
   UserCircle, Ship, Landmark, CreditCard, Tag, BookOpen,
-  Calendar, FileText, Bell, LogOut, Sun, Moon, Menu, X,
-  ChevronDown, ChevronLeft, CircleUser,
+  Calendar, FileText, LogOut, Sun, Moon, Menu, CircleUser,
+  Truck, Receipt, Banknote, HandCoins, Archive,
 } from "lucide-react";
 
 interface NavItem {
@@ -48,6 +48,16 @@ const navGroups: Array<{ groupAr: string; items: NavItem[] }> = [
     items: [
       { id: "accounts", labelAr: "دليل الحسابات", icon: BookOpen, href: "/accounts" },
       { id: "fiscal-years", labelAr: "السنوات المالية", icon: Calendar, href: "/fiscal-years" },
+    ],
+  },
+  {
+    groupAr: "العمليات التشغيلية",
+    items: [
+      { id: "agent-trip-charges", labelAr: "رسوم رحلات الوكلاء", icon: Truck, href: "/agent-trip-charges" },
+      { id: "agent-additional-fees", labelAr: "الرسوم الإضافية للوكلاء", icon: Receipt, href: "/agent-additional-fees" },
+      { id: "customs-payments", labelAr: "مدفوعات الجمارك", icon: Banknote, href: "/customs-payments" },
+      { id: "on-behalf-costs", labelAr: "التكاليف والسلف بالنيابة", icon: HandCoins, href: "/on-behalf-costs" },
+      { id: "cost-sources", labelAr: "مصادر التكاليف", icon: Archive, href: "/cost-sources" },
     ],
   },
   {
@@ -199,6 +209,11 @@ function BreadcrumbNav({ location }: { location: string }) {
     "/accounts": "دليل الحسابات",
     "/fiscal-years": "السنوات المالية",
     "/audit-logs": "سجل الأحداث",
+    "/agent-trip-charges": "رسوم رحلات الوكلاء",
+    "/agent-additional-fees": "الرسوم الإضافية للوكلاء",
+    "/customs-payments": "مدفوعات الجمارك",
+    "/on-behalf-costs": "التكاليف والسلف بالنيابة",
+    "/cost-sources": "مصادر التكاليف",
   };
   const label = pathMap[location] ?? pathMap[Object.keys(pathMap).find(k => k !== "/" && location.startsWith(k)) ?? ""] ?? location;
   return (

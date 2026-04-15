@@ -27,6 +27,20 @@ pnpm workspace monorepo using TypeScript. Contains a production-ready ERP archit
 
 ## Artifacts
 
+### ERP Phase 2 — Running Application (`artifacts/erp-phase2`) + API Server (`artifacts/api-server`)
+- **ERP Frontend**: React + Vite, PORT=21556, full Arabic RTL UI with dark/light mode
+- **API Server**: Express 5 + Drizzle ORM, PORT=8080
+- **Auth**: JWT sessions, RBAC with roles/permissions
+- **Phase 2 modules**: Users, Roles, Branches, Settings, Sequences, Customers, Agents, Treasuries, Bank Accounts, Charge Types, Accounts, Fiscal Years, Audit Logs
+- **Phase 3 modules (Pooled Cost Source Engine)**: Agent Trip Charges (ATC-), Agent Additional Fees (AEF-), Customs Payments (CPA-), On-Behalf Costs (OBC-), Cost Sources
+  - IFRS 15 Agent Model: All pass-through costs debit account 1104 (On-Behalf Recoverable)
+  - Agent credit charges → DR 1104 / CR 2102 (Agent Payables)
+  - Cash/bank payments → DR 1104 / CR 1101 (Cash) or 1102 (Bank)
+  - Each posted document creates a cost_sources entry for Phase 4 allocation
+- **DB schema files**: `lib/db/src/schema/` — platform.ts, accounting.ts, masterdata.ts, operations.ts (Phase 3)
+- **Posting service**: `artifacts/api-server/src/lib/posting.ts`
+- **Admin login**: admin / Admin@12345
+
 ### ERP Phase 1 — Saudi Customs Clearance Architecture (`artifacts/erp-phase1`)
 - **Type**: React Vite web app
 - **Preview path**: `/`

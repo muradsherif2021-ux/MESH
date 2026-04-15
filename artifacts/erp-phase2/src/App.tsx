@@ -17,6 +17,11 @@ import ChargeTypes from "@/pages/ChargeTypes";
 import Accounts from "@/pages/Accounts";
 import FiscalYears from "@/pages/FiscalYears";
 import AuditLogs from "@/pages/AuditLogs";
+import AgentTripCharges from "@/pages/AgentTripCharges";
+import AgentAdditionalFees from "@/pages/AgentAdditionalFees";
+import CustomsPayments from "@/pages/CustomsPayments";
+import OnBehalfCosts from "@/pages/OnBehalfCosts";
+import CostSources from "@/pages/CostSources";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -56,6 +61,11 @@ function AppRoutes() {
         <Route path="/accounts" component={Accounts} />
         <Route path="/fiscal-years" component={FiscalYears} />
         <Route path="/audit-logs" component={AuditLogs} />
+        <Route path="/agent-trip-charges" component={AgentTripCharges} />
+        <Route path="/agent-additional-fees" component={AgentAdditionalFees} />
+        <Route path="/customs-payments" component={CustomsPayments} />
+        <Route path="/on-behalf-costs" component={OnBehalfCosts} />
+        <Route path="/cost-sources" component={CostSources} />
         <Route>
           <Redirect to="/" />
         </Route>
