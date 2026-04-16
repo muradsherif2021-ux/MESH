@@ -309,6 +309,180 @@ export async function postOnBehalfCost(params: {
   return je;
 }
 
+// ─── Post Invoice (Final/POSTED) ──────────────────────────────────────────────
+// DR 1103 AR | CR 1104 Pass-Through | CR 4101+ Revenue | CR 2104 VAT
+
+export async function postInvoice(params: {
+  tx: typeof db;
+  invoiceId: string;
+  invoiceNumber: string;
+  date: string;
+  customerId: string;
+  subtotalPassThrough: number;
+  subtotalRevenue: number;
+  vatAmount: number;
+  totalAmount: number;
+  branchId?: string | null;
+  lines: Array<{
+    id: string;
+    description: string;
+    amount: number;
+    accountingType: string;
+    vatAmount: number;
+    revenueAccountId?: string | null;
+    costSourceId?: string | null;
+  }>;
+  userId: string;
+}) {
+  const { tx, invoiceId, invoiceNumber, date, subtotalPassThrough, subtotalRevenue, vatAmount, totalAmount, branchId, lines, userId } = params;
+
+  const arAccountId = await resolveAccount(tx, "1103");
+  const recoverableAccountId = await resolveAccount(tx, ACCOUNT_CODES.ON_BEHALF_RECOVERABLE);
+  const vatAccountId = await resolveAccount(tx, "2104");
+  const jeNumber = await nextJeNumber(tx);
+
+  const jeLines: Array<{ accountId: string; side: "DEBIT" | "CREDIT"; amount: string; description: string; lineNumber: string }> = [];
+  let lineCounter = 1;
+
+  // DR 1103 — full receivable
+  jeLines.push({
+    accountId: arAccountId,
+    side: "DEBIT",
+    amount: String(totalAmount.toFixed(2)),
+    description: `ذمة مدينة — فاتورة ${invoiceNumber}`,
+    lineNumber: String(lineCounter++),
+  });
+
+  // CR 1104 — pass-through recovery (if any)
+  if (subtotalPassThrough > 0) {
+    jeLines.push({
+      accountId: recoverableAccountId,
+      side: "CREDIT",
+      amount: String(subtotalPassThrough.toFixed(2)),
+      description: `تسوية تكاليف قابلة للاسترداد — ${invoiceNumber}`,
+      lineNumber: String(lineCounter++),
+    });
+  }
+
+  // CR revenue accounts — one line per revenue line (grouped by account)
+  const revenueByAccount = new Map<string, number>();
+  for (const line of lines) {
+    if (line.accountingType === "REVENUE") {
+      const accId = line.revenueAccountId ?? (await resolveAccount(tx, "4101"));
+      revenueByAccount.set(accId, (revenueByAccount.get(accId) ?? 0) + line.amount);
+    }
+  }
+  for (const [accId, amount] of revenueByAccount) {
+    jeLines.push({
+      accountId: accId,
+      side: "CREDIT",
+      amount: String(amount.toFixed(2)),
+      description: `إيراد خدمات — فاتورة ${invoiceNumber}`,
+      lineNumber: String(lineCounter++),
+    });
+  }
+
+  // CR 2104 — VAT payable (if any)
+  if (vatAmount > 0) {
+    jeLines.push({
+      accountId: vatAccountId,
+      side: "CREDIT",
+      amount: String(vatAmount.toFixed(2)),
+      description: `ضريبة القيمة المضافة — فاتورة ${invoiceNumber}`,
+      lineNumber: String(lineCounter++),
+    });
+  }
+
+  const [je] = await tx.insert(journalEntries).values({
+    number: jeNumber,
+    date,
+    type: "MANUAL",
+    status: "POSTED",
+    description: `فاتورة خدمة مرحّلة — ${invoiceNumber}`,
+    refEntityType: "invoices",
+    refEntityId: invoiceId as any,
+    branchId: branchId as any,
+    totalDebit: String(totalAmount.toFixed(2)),
+    totalCredit: String(totalAmount.toFixed(2)),
+    postedAt: new Date(),
+    postedBy: userId as any,
+    createdBy: userId as any,
+  }).returning();
+
+  await tx.insert(journalEntryLines).values(
+    jeLines.map(l => ({
+      journalEntryId: je.id,
+      lineNumber: l.lineNumber,
+      accountId: l.accountId as any,
+      side: l.side as any,
+      amount: l.amount,
+      description: l.description,
+    }))
+  );
+
+  return je;
+}
+
+// ─── Post Receipt Voucher ─────────────────────────────────────────────────────
+// DR 1101/1102 Cash/Bank | CR 1103 AR
+
+export async function postReceiptVoucher(params: {
+  tx: typeof db;
+  receiptId: string;
+  receiptNumber: string;
+  date: string;
+  customerId: string;
+  amount: number;
+  paymentMethod: string;
+  branchId?: string | null;
+  userId: string;
+}) {
+  const { tx, receiptId, receiptNumber, date, amount, paymentMethod, branchId, userId } = params;
+
+  const arAccountId = await resolveAccount(tx, "1103");
+  const drCode = paymentMethod === "BANK_TRANSFER" || paymentMethod === "CHEQUE"
+    ? ACCOUNT_CODES.BANK : ACCOUNT_CODES.CASH;
+  const drAccountId = await resolveAccount(tx, drCode);
+  const jeNumber = await nextJeNumber(tx);
+
+  const [je] = await tx.insert(journalEntries).values({
+    number: jeNumber,
+    date,
+    type: "MANUAL",
+    status: "POSTED",
+    description: `سند قبض — ${receiptNumber}`,
+    refEntityType: "receipt_vouchers",
+    refEntityId: receiptId as any,
+    branchId: branchId as any,
+    totalDebit: String(amount.toFixed(2)),
+    totalCredit: String(amount.toFixed(2)),
+    postedAt: new Date(),
+    postedBy: userId as any,
+    createdBy: userId as any,
+  }).returning();
+
+  await tx.insert(journalEntryLines).values([
+    {
+      journalEntryId: je.id,
+      lineNumber: "1",
+      accountId: drAccountId as any,
+      side: "DEBIT",
+      amount: String(amount.toFixed(2)),
+      description: `سند قبض ${receiptNumber} — مدين`,
+    },
+    {
+      journalEntryId: je.id,
+      lineNumber: "2",
+      accountId: arAccountId as any,
+      side: "CREDIT",
+      amount: String(amount.toFixed(2)),
+      description: `سند قبض ${receiptNumber} — دائن`,
+    },
+  ]);
+
+  return je;
+}
+
 // ─── Create Cost Source ────────────────────────────────────────────────────────
 
 export async function createCostSource(params: {

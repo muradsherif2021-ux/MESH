@@ -58,6 +58,54 @@ export async function apiRequest<T = unknown>(
   return res.json();
 }
 
+// ─── axios-like client used by Phase 4 pages ─────────────────────────────────
+
+async function apiClientRequest<T = unknown>(
+  path: string,
+  options: RequestInit = {},
+): Promise<{ data: T }> {
+  const url = `${API_BASE}${path}`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> || {}),
+  };
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  let res = await fetch(url, { ...options, headers, credentials: "include" });
+
+  if (res.status === 401 && accessToken) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(url, { ...options, headers, credentials: "include" });
+    }
+  }
+
+  const payload = res.status === 204 ? {} : await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const err: any = new Error(payload.error || `HTTP ${res.status}`);
+    err.response = { data: payload, status: res.status };
+    throw err;
+  }
+
+  return { data: payload as T };
+}
+
+export const apiClient = {
+  get: <T = unknown>(url: string) => apiClientRequest<T>(url),
+  post: <T = unknown>(url: string, body?: unknown) =>
+    apiClientRequest<T>(url, { method: "POST", body: JSON.stringify(body) }),
+  put: <T = unknown>(url: string, body?: unknown) =>
+    apiClientRequest<T>(url, { method: "PUT", body: JSON.stringify(body) }),
+  patch: <T = unknown>(url: string, body?: unknown) =>
+    apiClientRequest<T>(url, { method: "PATCH", body: JSON.stringify(body) }),
+  delete: <T = unknown>(url: string) =>
+    apiClientRequest<T>(url, { method: "DELETE" }),
+};
+
 export function api<T = unknown>(path: string) {
   return {
     get: (params?: Record<string, string | number | boolean | undefined>) => {

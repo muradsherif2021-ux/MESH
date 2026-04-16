@@ -1,0 +1,613 @@
+Phase 4 Prompt — Build Draft/Final Invoicing, Invoice-Time Allocation, Receivables, VAT, and Receipts
+Arabic-First | RTL-First | Agent Model | Invoice-Time Allocation | True Receivables | VAT on Service Fees Only
+
+We have already completed:
+- Phase 1: architecture and domain design
+- Phase 2: core platform, master data, permissions, chart of accounts, fiscal setup
+- Phase 3: pooled on-behalf cost workflows and cost source engine
+
+Now start Phase 4 implementation only.
+
+Important:
+Do NOT redesign the accounting model.
+Do NOT convert the system into direct-cost-per-customer recording by default.
+Do NOT bypass the cost source engine.
+Do NOT treat all invoice lines the same from an accounting perspective.
+This phase must implement the real invoice-time allocation and invoicing lifecycle under the Agent Model.
+
+==================================================
+1) PHASE 4 GOAL
+==================================================
+
+Build the full customer invoicing and receivables layer on top of the pooled cost source engine.
+
+This phase must implement:
+- draft/proforma invoices
+- final/posted invoices
+- invoice-time cost allocation from pooled cost sources
+- invoice lines with correct accounting categories
+- customer receivable creation
+- VAT logic on service fees only
+- customer advances handling if applicable
+- receipt vouchers / customer collections
+- customer balance updates through proper accounting
+- readiness for later credit/debit note and reversal enhancements
+
+This phase is where pooled recoverable costs are actually allocated to customers and settled through invoices.
+
+==================================================
+2) CORE BUSINESS RULE — MANDATORY
+==================================================
+
+Pooled recoverable costs are recorded first without assigning them to a single customer by default.
+
+Later, when creating an invoice for a customer:
+- the user allocates the exact share belonging to that customer from one or more available cost sources
+- the user also adds true company revenue lines such as customs clearance fees and administrative fees
+- VAT is calculated only on taxable revenue/service lines
+- the final posted invoice creates accounting impact
+- draft invoice does not create accounting impact
+
+This is mandatory.
+The invoice is the primary settlement point between:
+- pooled recoverable costs
+- customer receivable
+- company revenue
+- VAT payable
+
+==================================================
+3) IN SCOPE FOR PHASE 4
+==================================================
+
+Implement only these areas now:
+
+A. Invoice Core
+- draft invoice
+- final/posted invoice
+- invoice numbering
+- invoice statuses
+- invoice detail and list screens
+- invoice line model
+- printable invoice structure foundation
+
+B. Invoice-Time Allocation
+- selecting available pooled cost sources
+- allocating exact amounts from one or more cost sources to the invoice/customer
+- allocation validation
+- remaining balance updates
+- allocation persistence
+
+C. Accounting Impact
+- accounts receivable creation
+- pass-through settlement from recoverable pooled cost accounts
+- revenue recognition
+- VAT payable recognition
+- customer advances application if supported
+
+D. Customer Collections
+- receipt vouchers
+- receipt application to receivables
+- customer outstanding balance tracking
+
+==================================================
+4) OUT OF SCOPE — DO NOT IMPLEMENT NOW
+==================================================
+
+Do NOT fully implement in this phase:
+- full financial report suite
+- generalized reversal engine for all transaction types
+- payroll
+- FX / multi-currency complexities unless already foundational
+- ZATCA API integration
+- advanced analytics
+- full credit/debit note workflows unless minimally scaffolded
+- bank reconciliation
+- full cash flow reporting
+
+You may add structural hooks only where necessary, but do not expand beyond this phase.
+
+==================================================
+5) INVOICE MODEL — MANDATORY
+==================================================
+
+Implement a robust invoice model.
+
+Required invoice header fields at minimum:
+- invoice id
+- invoice number
+- invoice type/classification
+- customer id
+- invoice date
+- due date if relevant
+- branch
+- status
+- notes
+- VAT enabled/disabled based on invoice/business rules
+- subtotal pass-through
+- subtotal revenue
+- VAT amount
+- total amount
+- createdBy
+- postedBy
+- timestamps
+- audit fields
+
+Required invoice statuses at minimum:
+- DRAFT
+- POSTED / FINAL
+- CANCELLED or VOID only if architecture safely supports it
+- future-ready for reversal/correction flow
+
+Important:
+Do not allow final posted invoice data to remain casually editable.
+
+==================================================
+6) INVOICE LINE MODEL — MANDATORY
+==================================================
+
+Each invoice line must carry structured accounting meaning.
+
+Required fields at minimum:
+- invoiceId
+- lineNo
+- chargeTypeId
+- description
+- quantity if needed
+- unitPrice if needed
+- amount
+- accountingType = PASS_THROUGH / REVENUE
+- vatApplicable
+- linkedCostSourceId if PASS_THROUGH
+- linkedAllocationId if applicable
+- display/order fields
+- audit fields
+
+Important rules:
+- accounting treatment must be based on structured fields, not free-text names
+- PASS_THROUGH lines represent recoverable costs paid on behalf of the customer
+- REVENUE lines represent the company’s own revenue
+- only eligible REVENUE lines participate in VAT calculation
+- PASS_THROUGH lines do not generate revenue
+- PASS_THROUGH lines do not get VAT
+
+==================================================
+7) INVOICE-TIME ALLOCATION — MANDATORY
+==================================================
+
+This is the heart of Phase 4.
+
+When creating an invoice, the user must be able to:
+- search/select available cost sources
+- view total/allocated/remaining balance for each source
+- allocate exact amounts from one or more cost sources to this invoice/customer
+- create multiple pass-through lines from those allocations
+- combine them with revenue lines such as clearance fees
+
+Required allocation behavior:
+- allocation must consume only available remaining cost source balance
+- system must prevent over-allocation
+- system must prevent duplicate or double consumption
+- allocations must persist in a dedicated allocation table/model
+- cost source status must update automatically:
+  - UNALLOCATED
+  - PARTIALLY_ALLOCATED
+  - FULLY_ALLOCATED
+
+Important:
+Actual allocation is the default logic.
+Equal allocation may exist only later as an optional helper, not as the primary workflow.
+
+==================================================
+8) DRAFT VS FINAL INVOICE LIFECYCLE — MANDATORY
+==================================================
+
+Support these two invoice stages:
+
+A. DRAFT / PROFORMA
+Rules:
+- draft invoice is fully editable
+- draft invoice does NOT create journal entries
+- draft invoice does NOT affect accounts receivable
+- draft invoice does NOT affect VAT payable
+- draft invoice does NOT permanently consume cost source balances
+- draft allocations may be temporary/reserved only if architecture supports it safely, otherwise keep allocation finalization only at posting time
+
+B. FINAL / POSTED
+Rules:
+- posting final invoice validates all allocations
+- posting final invoice creates journal entries
+- posting final invoice creates customer receivable
+- posting final invoice settles allocated pass-through share from recoverable pooled cost account
+- posting final invoice recognizes revenue
+- posting final invoice recognizes VAT payable when applicable
+- posted invoice becomes locked against unsafe editing
+- any correction must be handled by controlled correction/reversal flow later, not direct editing
+
+==================================================
+9) ACCOUNTING LOGIC — MANDATORY
+==================================================
+
+Implement these posting rules for final posted invoice:
+
+When posting final invoice:
+DR Accounts Receivable — Customer
+
+CR On-Behalf Recoverable Costs / Unallocated Pass-Through Costs
+(for the total allocated pass-through amount)
+
+CR Clearance Fees Revenue
+(for true service fees)
+
+CR Administrative / Other Service Revenue
+(for other company revenue lines if any)
+
+CR VAT Payable
+(for VAT on taxable revenue lines only)
+
+Important:
+- do not treat pass-through lines as revenue
+- do not apply VAT to pass-through lines
+- do not create accounting entries for draft invoices
+
+==================================================
+10) CUSTOMER ADVANCES — IF SUPPORTED IN THIS PHASE
+==================================================
+
+If customer advances were already structurally designed, integrate them correctly.
+
+Example:
+When a customer has an advance balance:
+- it may be optionally applied against the final receivable
+- application must be explicit, auditable, and correctly posted
+
+Possible accounting treatment:
+At advance receipt earlier:
+DR Cash / Bank
+CR Customer Advances
+
+At application against posted invoice:
+DR Customer Advances
+CR Accounts Receivable — Customer
+
+If this is included in Phase 4, implement it properly.
+If not, scaffold it cleanly and document deferral clearly.
+
+==================================================
+11) RECEIPT VOUCHERS / COLLECTIONS — MANDATORY
+==================================================
+
+Implement customer receipt vouchers.
+
+Business meaning:
+- customer pays full or partial invoice balance
+- payment may be received in cash or bank
+- receipt must reduce customer receivable
+
+Required fields:
+- receipt voucher number
+- date
+- customer
+- payment method
+- treasury/bank account
+- amount
+- notes
+- branch
+- status
+- linked invoices or open receivable applications
+- audit fields
+
+Required behavior:
+- allow applying receipt to one or more posted customer invoices
+- support full or partial settlement
+- update outstanding balances accurately
+- do not allow settlement of unposted/draft invoices
+
+Accounting on posting receipt:
+DR Cash / Bank
+CR Accounts Receivable — Customer
+
+Important:
+Receipt application must be auditable and must respect remaining outstanding balances.
+
+==================================================
+12) RECEIVABLES BEHAVIOR — MANDATORY
+==================================================
+
+Implement customer receivable tracking based on posted accounting events.
+
+System must support:
+- invoice balance
+- paid amount
+- outstanding amount
+- customer open items
+- aging-readiness for later reports
+
+Critical rule:
+Receivables must arise from posted final invoices, not from draft invoices.
+
+==================================================
+13) ALLOCATION DATA MODEL — MANDATORY
+==================================================
+
+Implement a dedicated allocation model/table.
+
+Each allocation should include at minimum:
+- id
+- costSourceId
+- invoiceId
+- invoiceLineId if needed
+- customerId
+- allocatedAmount
+- allocationDate
+- allocationStatus
+- createdBy
+- postedBy if applicable
+- timestamps
+- audit fields
+
+Rules:
+- sum of allocations for a cost source must never exceed total source amount
+- allocation must be traceable from:
+  - cost source → invoices/customers
+  - invoice → originating cost sources
+- allocation rows must be queryable independently
+- allocation must integrate with invoice posting rules
+
+==================================================
+14) VALIDATION RULES — MANDATORY
+==================================================
+
+Implement strict validations for posting final invoice:
+- customer must exist and be active
+- invoice must have at least one valid line
+- PASS_THROUGH lines must have valid source allocations
+- total allocation requested must not exceed source remaining balance
+- VAT must be calculated only on eligible REVENUE lines
+- invoice totals must balance with line totals
+- fiscal period must be open
+- required accounts mapping must exist
+- posted invoice cannot be posted twice
+
+Implement strict validations for posting receipt:
+- customer must exist
+- payment account must be valid
+- amount must be positive
+- applied amount cannot exceed invoice outstanding
+- draft/unposted invoices cannot be settled
+
+==================================================
+15) DATABASE / SCHEMA REQUIREMENTS
+==================================================
+
+Update the real schema for this phase.
+
+Expected tables/entities include at least:
+- invoices
+- invoice_lines
+- cost_source_allocations
+- receipt_vouchers
+- receipt_applications or equivalent
+- customer_open_items structure if architecture needs it
+- status history if used
+- audit linkage fields
+
+For each entity define:
+- keys
+- foreign keys
+- indexes
+- numbering/reference fields
+- status fields
+- monetary fields
+- posting fields
+- branch linkage
+- created/updated audit fields
+
+Design for accounting integrity and future reporting.
+
+==================================================
+16) BACKEND REQUIREMENTS
+==================================================
+
+Implement real backend modules/services/controllers/DTOs for:
+- invoices
+- invoice lines
+- cost source allocations
+- final invoice posting
+- receipt vouchers
+- receipt application
+- receivable inquiry endpoints
+
+Requirements:
+- NestJS modular architecture
+- Prisma schema updates
+- DTO validation
+- permission guards
+- open fiscal period validation
+- posting validations
+- transactional posting service methods
+- audit integration
+- use database transactions for posting-sensitive operations
+
+Important:
+Invoice posting and receipt posting must be transaction-safe and accounting-safe.
+
+==================================================
+17) FRONTEND REQUIREMENTS
+==================================================
+
+Build Arabic-first RTL-first ERP screens for this phase.
+
+Required UI areas:
+- Invoices list page
+- Draft invoice create/edit page
+- Invoice detail page
+- Final/post action flow
+- Cost source allocation picker within invoice flow
+- Receipt vouchers list/create/detail page
+- Receipt application UI
+- Customer receivable/open balance inquiry page if feasible in this phase
+
+Required UI behavior:
+- Arabic labels and accounting terminology
+- RTL forms/tables/dialogs
+- clear separation between pass-through and revenue sections
+- visibility of VAT only on service lines
+- cost source balance visibility during allocation
+- status badges
+- totals summary boxes
+- confirm/post safeguards
+- permission-aware action buttons
+- print-friendly invoice layout foundation
+
+Important:
+The user experience must remain operationally simple while the accounting complexity stays correctly handled in the background.
+
+==================================================
+18) PERMISSIONS — MANDATORY
+==================================================
+
+Integrate with the Phase 2 RBAC system.
+
+At minimum define permissions for:
+- view invoices
+- create draft invoices
+- edit draft invoices
+- post final invoices
+- view invoice details
+- print/export invoices
+- view cost source balances for allocation
+- create receipt vouchers
+- post receipt vouchers
+- apply receipts to invoices
+- view customer receivables/open balances
+
+Backend enforcement is mandatory.
+Frontend hiding alone is not sufficient.
+
+==================================================
+19) AUDIT TRAIL — MANDATORY
+==================================================
+
+Audit all meaningful events in this phase:
+- create draft invoice
+- edit draft invoice
+- allocate cost source to invoice
+- remove/edit draft allocation
+- post final invoice
+- create receipt voucher
+- post receipt voucher
+- apply receipt to invoice
+- changes in outstanding balances through controlled posting
+- failed/blocked posting attempts where useful
+
+Capture:
+- actor
+- timestamp
+- action
+- before/after values
+- entity type/id
+- optional note/reason
+
+==================================================
+20) PRINT / DOCUMENT OUTPUT FOUNDATION
+==================================================
+
+Provide a clean Arabic-first invoice print layout foundation.
+
+Requirements:
+- RTL invoice rendering
+- Arabic terminology
+- clear grouping of:
+  - pass-through amounts
+  - company service fees
+  - VAT
+  - grand total
+- suitable for later PDF generation
+- professional Saudi business appearance
+
+Do not overbuild advanced PDF generation if not needed yet, but prepare the structure correctly.
+
+==================================================
+21) REQUIRED OUTPUT ORDER
+==================================================
+
+Deliver this phase in the following order:
+
+1. Phase 4 architecture confirmation
+- confirm exact modules implemented
+- confirm boundaries with Phase 3 and future phases
+
+2. Final schema changes
+- tables
+- fields
+- constraints
+- indexes
+- lifecycle fields
+- monetary and posting fields
+
+3. Allocation and posting design
+- invoice-time allocation flow
+- posting validations
+- transaction boundaries
+- receivable behavior
+- receipt application logic
+
+4. Backend implementation
+- modules
+- services
+- controllers
+- DTOs
+- guards
+- audit hooks
+
+5. Frontend implementation
+- invoice pages
+- allocation UI
+- receipt voucher pages
+- receivable inquiry views
+
+6. Permission integration
+- backend enforcement
+- frontend action visibility
+
+7. Demo-ready usage notes
+- how to create a draft invoice
+- how to allocate pass-through amounts
+- how to post a final invoice
+- how to record a receipt
+- how outstanding balances are updated
+
+==================================================
+22) CRITICAL DO-NOT-DO LIST
+==================================================
+
+Do NOT:
+- create accounting impact from draft invoices
+- treat pass-through lines as revenue
+- apply VAT to pass-through lines
+- bypass cost source allocation logic
+- allow posted invoice free editing
+- settle draft invoices with receipts
+- over-allocate pooled cost source balances
+- mix operational convenience with accounting incorrectness
+- build financial statements directly from invoice tables
+- collapse all invoice lines into one accounting behavior
+
+==================================================
+23) OUTPUT QUALITY EXPECTATION
+==================================================
+
+The result must be:
+- production-structured
+- accounting-correct
+- scalable
+- maintainable
+- Arabic-first
+- RTL-first
+- practical for daily invoicing operations
+- ready for Phase 5 reporting, audit hardening, reversals, and financial statements
+
+Start with Phase 4 only.
+Do not skip implementation details.
+Do not answer with generic theory.
+Build the real invoicing, allocation, receivables, VAT, and receipts workflows properly.

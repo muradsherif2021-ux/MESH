@@ -22,7 +22,11 @@ import AgentAdditionalFees from "@/pages/AgentAdditionalFees";
 import CustomsPayments from "@/pages/CustomsPayments";
 import OnBehalfCosts from "@/pages/OnBehalfCosts";
 import CostSources from "@/pages/CostSources";
+import Invoices from "@/pages/Invoices";
+import ReceiptVouchers from "@/pages/ReceiptVouchers";
+import CustomerBalances from "@/pages/CustomerBalances";
 import { Loader2 } from "lucide-react";
+import { Toaster } from "sonner";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +70,9 @@ function AppRoutes() {
         <Route path="/customs-payments" component={CustomsPayments} />
         <Route path="/on-behalf-costs" component={OnBehalfCosts} />
         <Route path="/cost-sources" component={CostSources} />
+        <Route path="/invoices" component={Invoices} />
+        <Route path="/receipt-vouchers" component={ReceiptVouchers} />
+        <Route path="/customer-balances" component={CustomerBalances} />
         <Route>
           <Redirect to="/" />
         </Route>
@@ -81,6 +88,7 @@ function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <AppRoutes />
         </WouterRouter>
+        <Toaster position="top-right" richColors dir="rtl" />
       </AuthProvider>
     </QueryClientProvider>
   );

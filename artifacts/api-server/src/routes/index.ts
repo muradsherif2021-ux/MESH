@@ -21,6 +21,9 @@ import agentAdditionalFeesRouter from "./agent-additional-fees";
 import customsPaymentsRouter from "./customs-payments";
 import onBehalfCostsRouter from "./on-behalf-costs";
 import costSourcesRouter from "./cost-sources";
+import invoicesRouter from "./invoices";
+import receiptVouchersRouter from "./receipt-vouchers";
+import customerBalancesRouter from "./customer-balances";
 
 const router: IRouter = Router();
 
@@ -46,5 +49,8 @@ router.use("/agent-additional-fees", agentAdditionalFeesRouter);
 router.use("/customs-payments", customsPaymentsRouter);
 router.use("/on-behalf-costs", onBehalfCostsRouter);
 router.use("/cost-sources", costSourcesRouter);
+router.use("/invoices", invoicesRouter);
+router.use("/receipt-vouchers", receiptVouchersRouter);
+router.use("/customer-balances", customerBalancesRouter);
 
 export default router;

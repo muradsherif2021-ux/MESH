@@ -13,7 +13,7 @@ import {
 import { sql } from "drizzle-orm";
 import { users, branches } from "./platform";
 import { accounts, fiscalPeriods } from "./accounting";
-import { shippingAgents, treasuries, bankAccounts } from "./masterdata";
+import { shippingAgents, treasuries, bankAccounts, customers, chargeTypes } from "./masterdata";
 
 // ─── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -260,4 +260,153 @@ export const onBehalfCosts = pgTable("on_behalf_costs", {
   index("idx_on_behalf_costs_status").on(t.status),
   index("idx_on_behalf_costs_category").on(t.category),
   check("chk_obc_amount", sql`${t.amount} > 0`),
+]);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 4 — INVOICING, ALLOCATION, RECEIVABLES, RECEIPTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const invoiceStatusEnum = pgEnum("invoice_status", [
+  "DRAFT", "POSTED", "CANCELLED",
+]);
+
+export const allocationStatusEnum = pgEnum("allocation_status", [
+  "DRAFT", "CONFIRMED", "CANCELLED",
+]);
+
+export const receiptStatusEnum = pgEnum("receipt_status", [
+  "DRAFT", "POSTED", "CANCELLED",
+]);
+
+// ─── Invoices ─────────────────────────────────────────────────────────────────
+
+export const invoices = pgTable("invoices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  number: text("number").notNull().unique(),
+  customerId: uuid("customer_id").notNull().references(() => customers.id),
+  date: text("date").notNull(),
+  dueDate: text("due_date"),
+  branchId: uuid("branch_id").references(() => branches.id),
+  status: invoiceStatusEnum("status").notNull().default("DRAFT"),
+  notes: text("notes"),
+  vatEnabled: boolean("vat_enabled").notNull().default(true),
+  vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).notNull().default("15"),
+  subtotalPassThrough: numeric("subtotal_pass_through", { precision: 18, scale: 2 }).notNull().default("0"),
+  subtotalRevenue: numeric("subtotal_revenue", { precision: 18, scale: 2 }).notNull().default("0"),
+  vatAmount: numeric("vat_amount", { precision: 18, scale: 2 }).notNull().default("0"),
+  totalAmount: numeric("total_amount", { precision: 18, scale: 2 }).notNull().default("0"),
+  paidAmount: numeric("paid_amount", { precision: 18, scale: 2 }).notNull().default("0"),
+  outstandingAmount: numeric("outstanding_amount", { precision: 18, scale: 2 }).notNull().default("0"),
+  journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
+  postedAt: timestamp("posted_at", { withTimezone: true }),
+  postedBy: uuid("posted_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: uuid("created_by").references(() => users.id),
+  updatedBy: uuid("updated_by").references(() => users.id),
+}, (t) => [
+  index("idx_invoices_number").on(t.number),
+  index("idx_invoices_customer").on(t.customerId),
+  index("idx_invoices_date").on(t.date),
+  index("idx_invoices_status").on(t.status),
+  index("idx_invoices_branch").on(t.branchId),
+  check("chk_invoice_amounts_positive", sql`${t.totalAmount} >= 0`),
+]);
+
+// ─── Invoice Lines ────────────────────────────────────────────────────────────
+
+export const invoiceLines = pgTable("invoice_lines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  invoiceId: uuid("invoice_id").notNull().references(() => invoices.id, { onDelete: "cascade" }),
+  lineNo: text("line_no").notNull(),
+  chargeTypeId: uuid("charge_type_id").references(() => chargeTypes.id),
+  description: text("description").notNull(),
+  quantity: numeric("quantity", { precision: 10, scale: 3 }).notNull().default("1"),
+  unitPrice: numeric("unit_price", { precision: 18, scale: 2 }).notNull(),
+  amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+  accountingType: text("accounting_type").notNull(),
+  vatApplicable: boolean("vat_applicable").notNull().default(false),
+  vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).default("15"),
+  vatAmount: numeric("vat_amount", { precision: 18, scale: 2 }).notNull().default("0"),
+  lineTotal: numeric("line_total", { precision: 18, scale: 2 }).notNull(),
+  costSourceId: uuid("cost_source_id").references(() => costSources.id),
+  revenueAccountId: uuid("revenue_account_id").references(() => accounts.id),
+  displayOrder: text("display_order"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("idx_invoice_lines_invoice").on(t.invoiceId),
+  index("idx_invoice_lines_cost_source").on(t.costSourceId),
+  check("chk_invoice_line_amount", sql`${t.amount} > 0`),
+]);
+
+// ─── Cost Source Allocations ──────────────────────────────────────────────────
+
+export const costSourceAllocations = pgTable("cost_source_allocations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  costSourceId: uuid("cost_source_id").notNull().references(() => costSources.id),
+  invoiceId: uuid("invoice_id").notNull().references(() => invoices.id, { onDelete: "cascade" }),
+  invoiceLineId: uuid("invoice_line_id").references(() => invoiceLines.id, { onDelete: "cascade" }),
+  customerId: uuid("customer_id").references(() => customers.id),
+  allocatedAmount: numeric("allocated_amount", { precision: 18, scale: 2 }).notNull(),
+  allocationDate: text("allocation_date").notNull(),
+  status: allocationStatusEnum("status").notNull().default("DRAFT"),
+  postedBy: uuid("posted_by").references(() => users.id),
+  postedAt: timestamp("posted_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("idx_allocations_cost_source").on(t.costSourceId),
+  index("idx_allocations_invoice").on(t.invoiceId),
+  index("idx_allocations_customer").on(t.customerId),
+  index("idx_allocations_status").on(t.status),
+  check("chk_allocation_amount", sql`${t.allocatedAmount} > 0`),
+]);
+
+// ─── Receipt Vouchers ─────────────────────────────────────────────────────────
+
+export const receiptVouchers = pgTable("receipt_vouchers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  number: text("number").notNull().unique(),
+  date: text("date").notNull(),
+  customerId: uuid("customer_id").notNull().references(() => customers.id),
+  paymentMethod: paymentMethodEnum("payment_method").notNull().default("CASH"),
+  treasuryId: uuid("treasury_id").references(() => treasuries.id),
+  bankAccountId: uuid("bank_account_id").references(() => bankAccounts.id),
+  amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+  appliedAmount: numeric("applied_amount", { precision: 18, scale: 2 }).notNull().default("0"),
+  unappliedAmount: numeric("unapplied_amount", { precision: 18, scale: 2 }).notNull(),
+  branchId: uuid("branch_id").references(() => branches.id),
+  notes: text("notes"),
+  status: receiptStatusEnum("status").notNull().default("DRAFT"),
+  journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
+  postedAt: timestamp("posted_at", { withTimezone: true }),
+  postedBy: uuid("posted_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: uuid("created_by").references(() => users.id),
+  updatedBy: uuid("updated_by").references(() => users.id),
+}, (t) => [
+  index("idx_receipts_number").on(t.number),
+  index("idx_receipts_customer").on(t.customerId),
+  index("idx_receipts_date").on(t.date),
+  index("idx_receipts_status").on(t.status),
+  check("chk_receipt_amount", sql`${t.amount} > 0`),
+]);
+
+// ─── Receipt Applications — links receipts to specific invoices ───────────────
+
+export const receiptApplications = pgTable("receipt_applications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  receiptVoucherId: uuid("receipt_voucher_id").notNull().references(() => receiptVouchers.id, { onDelete: "cascade" }),
+  invoiceId: uuid("invoice_id").notNull().references(() => invoices.id),
+  appliedAmount: numeric("applied_amount", { precision: 18, scale: 2 }).notNull(),
+  applicationDate: text("application_date").notNull(),
+  status: text("status").notNull().default("ACTIVE"),
+  notes: text("notes"),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("idx_receipt_app_receipt").on(t.receiptVoucherId),
+  index("idx_receipt_app_invoice").on(t.invoiceId),
+  check("chk_receipt_app_amount", sql`${t.appliedAmount} > 0`),
 ]);

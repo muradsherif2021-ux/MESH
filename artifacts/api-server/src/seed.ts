@@ -17,6 +17,7 @@ const MODULES = [
   "accounts", "fiscal_years", "audit_logs", "notifications",
   "agent_trip_charges", "agent_additional_fees", "customs_payments",
   "on_behalf_costs", "cost_sources",
+  "invoices", "receipt_vouchers", "customer_receivables",
 ];
 const ACTIONS = ["view", "create", "edit", "delete", "post", "reverse", "print", "export", "approve"];
 
@@ -328,6 +329,9 @@ function getModuleNameAr(mod: string): string {
     agent_trip_charges: "رسوم رحلات الوكلاء", agent_additional_fees: "الرسوم الإضافية للوكلاء",
     customs_payments: "مدفوعات الجمارك", on_behalf_costs: "التكاليف والسلف بالنيابة",
     cost_sources: "مصادر التكاليف",
+    invoices: "الفواتير",
+    receipt_vouchers: "سندات القبض",
+    customer_receivables: "أرصدة العملاء",
   };
   return names[mod] ?? mod;
 }

@@ -6,6 +6,7 @@ import {
   UserCircle, Ship, Landmark, CreditCard, Tag, BookOpen,
   Calendar, FileText, LogOut, Sun, Moon, Menu, CircleUser,
   Truck, Receipt, Banknote, HandCoins, Archive,
+  FileCheck, Wallet,
 } from "lucide-react";
 
 interface NavItem {
@@ -58,6 +59,14 @@ const navGroups: Array<{ groupAr: string; items: NavItem[] }> = [
       { id: "customs-payments", labelAr: "مدفوعات الجمارك", icon: Banknote, href: "/customs-payments" },
       { id: "on-behalf-costs", labelAr: "التكاليف والسلف بالنيابة", icon: HandCoins, href: "/on-behalf-costs" },
       { id: "cost-sources", labelAr: "مصادر التكاليف", icon: Archive, href: "/cost-sources" },
+    ],
+  },
+  {
+    groupAr: "الفوترة والذمم المدينة",
+    items: [
+      { id: "invoices", labelAr: "الفواتير", icon: FileCheck, href: "/invoices" },
+      { id: "receipt-vouchers", labelAr: "سندات القبض", icon: Receipt, href: "/receipt-vouchers" },
+      { id: "customer-balances", labelAr: "أرصدة العملاء", icon: Wallet, href: "/customer-balances" },
     ],
   },
   {
